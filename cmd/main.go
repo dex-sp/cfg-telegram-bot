@@ -10,25 +10,32 @@ import (
 )
 
 var (
-	tokenName string = "TELEGRAM_APITOKEN"
+	telegramTokenVarName string = "TELEGRAM_APITOKEN"
+	// trelloAppKeyVarName  string = "TRELLO_APP_KEY"
 )
 
 func main() {
 
 	// loads values from .env into the system
 	if err := godotenv.Load(); err != nil {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 
 	// Get the TELEGRAM_APITOKEN environment variable
-	telegramToken, exists := os.LookupEnv(tokenName)
+	telegramToken, exists := os.LookupEnv(telegramTokenVarName)
 	if !exists {
-		log.Panicf("%s not exists", tokenName)
+		log.Fatalf("%s not exists", telegramTokenVarName)
 	}
+
+	// Get the TRELLO_APP_KEY environment variable
+	// trelloAppKey, exists := os.LookupEnv(trelloAppKeyVarName)
+	// if !exists {
+	// 	log.Panicf("%s not exists", trelloAppKeyVarName)
+	// }
 
 	bot, err := tgbotapi.NewBotAPI(telegramToken)
 	if err != nil {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 
 	bot.Debug = true
