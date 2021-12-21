@@ -12,13 +12,15 @@ var (
 
 	registrationButton = tgbotapi.NewInlineKeyboardButtonData("📝 Записаться на игру", fmt.Sprintf("/%s", registrationQuery))
 	cancelButton       = tgbotapi.NewInlineKeyboardButtonData("❌ Отменить запись", cancelQuery)
-	locationButton     = tgbotapi.NewInlineKeyboardButtonData("📍 Место проведенеия игр", fmt.Sprintf("/%s", cmdLocation))
-	scheduleButton     = tgbotapi.NewInlineKeyboardButtonData("🗓 Расписание", fmt.Sprintf("/%s", cmdSchedule))
-	priceButton        = tgbotapi.NewInlineKeyboardButtonData("💵 Цены", fmt.Sprintf("/%s", cmdPrice))
+	locationButton     = tgbotapi.NewInlineKeyboardButtonData("📍 Место проведенеия игр", locationQuery)
+	scheduleButton     = tgbotapi.NewInlineKeyboardButtonData("🗓 Расписание", scheduleQuery)
+	priceButton        = tgbotapi.NewInlineKeyboardButtonData("💵 Цены", priceQuery)
 	payButtom          = tgbotapi.NewInlineKeyboardButtonData("💳 Оплата", fmt.Sprintf("/%s", cmdPay))
-	orderButton        = tgbotapi.NewInlineKeyboardButtonData("🎤 Заказать ведущего", fmt.Sprintf("/%s", cmdOrder))
+	orderButton        = tgbotapi.NewInlineKeyboardButtonData("🎤 Заказать ведущего", orderQuery)
 	callButton         = tgbotapi.NewInlineKeyboardButtonData("📲 Позвоните мне", callQuery)
 	chartButton        = tgbotapi.NewInlineKeyboardButtonURL("⚔️ В Чат", "http://1.com")
+
+	anotherDayButton = tgbotapi.NewInlineKeyboardButtonData("Хочу в другой день", anotherDayQuery)
 
 	// Phone & Location buttons
 

@@ -46,3 +46,8 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 		}
 	}
 }
+
+func containsUserPhone(message *tgbotapi.Message) bool {
+	return message.Contact.PhoneNumber != "" &&
+		message.From.ID == message.Contact.UserID
+}

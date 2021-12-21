@@ -16,12 +16,13 @@ const (
 
 	registrationQuery = "registration"
 	cancelQuery       = "cancel"
-	cmdLocation       = "location"
-	cmdSchedule       = "schedule"
-	cmdPrice          = "price"
+	locationQuery     = "location"
+	scheduleQuery     = "schedule"
+	priceQuery        = "price"
 	cmdPay            = "pay"
-	cmdOrder          = "order"
+	orderQuery        = "order"
 	callQuery         = "call"
+	anotherDayQuery   = "another"
 )
 
 func (b *Bot) handleCommands(message *tgbotapi.Message) error {
@@ -47,8 +48,22 @@ func (b *Bot) handleQueries(query *tgbotapi.CallbackQuery) error {
 	case cancelQuery:
 		return b.handleCancelQuery(query)
 
+	case locationQuery:
+		return b.handleLocationQuery(query)
+
+	case scheduleQuery:
+		return b.handleScheduleQuery(query)
+
+	case priceQuery:
+		return b.handlePriceQuery(query)
+
+	case orderQuery:
+		return b.handleOrderQuery(query)
+
 	case callQuery:
 		return b.handleCallQuery(query)
+
+	case anotherDayQuery:
 
 	default:
 
@@ -118,15 +133,74 @@ func (b *Bot) handleCancelQuery(query *tgbotapi.CallbackQuery) error {
 	return err
 }
 
+func (b *Bot) handleLocationQuery(query *tgbotapi.CallbackQuery) error {
+
+	msg := tgbotapi.NewMessage(query.From.ID,
+		"TODO: написать справку по локации")
+
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(registrationButton),
+		tgbotapi.NewInlineKeyboardRow(chartButton))
+
+	_, err := b.bot.Send(msg)
+	return err
+}
+
+func (b *Bot) handlePriceQuery(query *tgbotapi.CallbackQuery) error {
+
+	msg := tgbotapi.NewMessage(query.From.ID,
+		"300р. - сыграть одну игру, примерно 40 минут\n"+
+			"600р. - с 19:00 до 24:00\n"+
+			"800р. - с 19:00 до 03:00\n\n"+
+			"Среда")
+
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(registrationButton))
+
+	_, err := b.bot.Send(msg)
+	return err
+}
+
+func (b *Bot) handleScheduleQuery(query *tgbotapi.CallbackQuery) error {
+
+	msg := tgbotapi.NewMessage(query.From.ID,
+		"Среда с 19:00 до 24:00\n"+
+			"Пятница с 19:00 до 03:00\n"+
+			"Суббота с 16:30 до 06:00")
+
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(registrationButton),
+		tgbotapi.NewInlineKeyboardRow(anotherDayButton))
+
+	_, err := b.bot.Send(msg)
+	return err
+}
+
+func (b *Bot) handleOrderQuery(query *tgbotapi.CallbackQuery) error {
+
+	msg := tgbotapi.NewMessage(query.From.ID,
+		"Напишите, пожалуйста, свой номер телефона. "+
+			"С вами свяжется менеджер и вы обсудите условия.\n\n"+
+			"Стоимость часа ведущего от 2800р.")
+
+	if query.From.FirstName != "" {
+		msg.Text = fmt.Sprintf("%s, напишите, пожалуйста, свой номер телефона. "+
+			"С вами свяжется менеджер и вы обсудите условия.\n\n"+
+			"Стоимость часа ведущего от 2800р.",
+			query.From.FirstName)
+	}
+
+	msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(getPhoneButton))
+
+	_, err := b.bot.Send(msg)
+	return err
+}
+
 func (b *Bot) handleCallQuery(query *tgbotapi.CallbackQuery) error {
 
 	msg := tgbotapi.NewMessage(query.From.ID,
 		"Напишите свой номер телефона")
-
-	if query.From.FirstName != "" {
-		msg.Text = fmt.Sprintf("%s, напишите свой номер телефона",
-			query.From.FirstName)
-	}
 
 	keyboard := tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(getPhoneButton),
