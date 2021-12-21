@@ -51,3 +51,13 @@ func containsUserPhone(message *tgbotapi.Message) bool {
 	return message.Contact.PhoneNumber != "" &&
 		message.From.ID == message.Contact.UserID
 }
+
+func (b *Bot) deleteReplyMenu(message *tgbotapi.Message) error {
+
+	msg := tgbotapi.NewChatAction(message.Chat.ID,
+		"Спасибо, что помогаете нам улучшить качество сервиса.🥳")
+	msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
+
+	_, err := b.bot.Send(msg)
+	return err
+}

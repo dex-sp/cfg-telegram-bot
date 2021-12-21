@@ -72,16 +72,21 @@ func (b *Bot) handleQueries(query *tgbotapi.CallbackQuery) error {
 	return nil
 }
 
-func (b *Bot) handleMessage(message *tgbotapi.Message) {
+func (b *Bot) handleMessage(message *tgbotapi.Message) error {
+
+	var err error
 
 	if containsUserPhone(message) {
 
-		msg := tgbotapi.NewMessage(message.Chat.ID,
-			fmt.Sprintf("[%s] %s", message.From.UserName, message.Contact.PhoneNumber))
+		//msg := tgbotapi.NewDeleteMessage(message.Chat.ID, message.MessageID)
 
-		b.bot.Send(msg)
+		// msg := tgbotapi.NewMessage(message.Chat.ID,
+		// 	fmt.Sprintf("%s: %s", message.From.UserName, message.Contact.PhoneNumber))
+
+		err = b.deleteReplyMenu(message)
 
 	}
+	return err
 }
 
 func (b *Bot) handleStartCommand(message *tgbotapi.Message) error {
@@ -202,11 +207,9 @@ func (b *Bot) handleCallQuery(query *tgbotapi.CallbackQuery) error {
 	msg := tgbotapi.NewMessage(query.From.ID,
 		"Напишите свой номер телефона")
 
-	keyboard := tgbotapi.NewReplyKeyboard(
+	msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(getPhoneButton),
 		tgbotapi.NewKeyboardButtonRow(getLocationButton))
-
-	msg.ReplyMarkup = keyboard
 
 	_, err := b.bot.Send(msg)
 	return err
