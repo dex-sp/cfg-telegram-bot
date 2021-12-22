@@ -4,6 +4,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/boltdb/bolt"
+	"github.com/dex-sp/cfg-telegram-bot/pkg/repository"
+	"github.com/dex-sp/cfg-telegram-bot/pkg/repository/boltdb"
 	"github.com/dex-sp/cfg-telegram-bot/pkg/telegram"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
@@ -37,11 +40,41 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	bot.Debug = true
 
-	tgBot := telegram.NewBot(bot)
+	db, err := initDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+	userDataRepository := boltdb.NewUserDataRepository(db)
+
+	tgBot := telegram.NewBot(bot, userDataRepository)
 	if err := tgBot.Start(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func initDB() (*bolt.DB, error) {
+
+	db, err := bolt.Open("userData.db", 0600, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte(repository.Phones))
+		if err != nil {
+			return err
+		}
+		_, err = tx.CreateBucketIfNotExists([]byte(repository.Locations))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }

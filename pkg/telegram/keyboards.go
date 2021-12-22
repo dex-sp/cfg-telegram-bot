@@ -20,7 +20,8 @@ var (
 	callButton         = tgbotapi.NewInlineKeyboardButtonData("📲 Позвоните мне", callQuery)
 	chartButton        = tgbotapi.NewInlineKeyboardButtonURL("⚔️ В Чат", "http://1.com")
 
-	anotherDayButton = tgbotapi.NewInlineKeyboardButtonData("Хочу в другой день", anotherDayQuery)
+	anotherDayButton  = tgbotapi.NewInlineKeyboardButtonData("Хочу в другой день", anotherDayQuery)
+	changePhoneButton = tgbotapi.NewInlineKeyboardButtonData("Изменить номер телефона", changePhoneQuery)
 
 	// Phone & Location buttons
 

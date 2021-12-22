@@ -3,6 +3,7 @@ package telegram
 import (
 	"fmt"
 
+	"github.com/dex-sp/cfg-telegram-bot/pkg/repository"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -22,7 +23,9 @@ const (
 	cmdPay            = "pay"
 	orderQuery        = "order"
 	callQuery         = "call"
-	anotherDayQuery   = "another"
+
+	anotherDayQuery  = "another"
+	changePhoneQuery = "change"
 )
 
 func (b *Bot) handleCommands(message *tgbotapi.Message) error {
@@ -65,6 +68,9 @@ func (b *Bot) handleQueries(query *tgbotapi.CallbackQuery) error {
 
 	case anotherDayQuery:
 
+	case changePhoneQuery:
+		return b.handleChangePhoneQuery(query)
+
 	default:
 
 	}
@@ -74,19 +80,11 @@ func (b *Bot) handleQueries(query *tgbotapi.CallbackQuery) error {
 
 func (b *Bot) handleMessage(message *tgbotapi.Message) error {
 
-	var err error
-
 	if containsUserPhone(message) {
-
-		//msg := tgbotapi.NewDeleteMessage(message.Chat.ID, message.MessageID)
-
-		// msg := tgbotapi.NewMessage(message.Chat.ID,
-		// 	fmt.Sprintf("%s: %s", message.From.UserName, message.Contact.PhoneNumber))
-
-		err = b.deleteReplyMenu(message)
+		return b.handlePhoneData(message)
 
 	}
-	return err
+	return nil
 }
 
 func (b *Bot) handleStartCommand(message *tgbotapi.Message) error {
@@ -204,13 +202,58 @@ func (b *Bot) handleOrderQuery(query *tgbotapi.CallbackQuery) error {
 
 func (b *Bot) handleCallQuery(query *tgbotapi.CallbackQuery) error {
 
+	currentPhone, err := b.userDataRepository.Get(query.From.ID, repository.Phones)
+	if err != nil {
+		return err
+	}
+
+	msg := tgbotapi.NewMessage(query.From.ID, fmt.Sprintf(
+		"Наш менеджер свяжется с вами в ближайшее время!☎️\n"+
+			"Если у вас изменился номер нажмите *%s*.", changePhoneButton.Text))
+	msg.ParseMode = "Markdown"
+
+	if currentPhone == "" {
+		msg.Text = "Если вы укажете свой телефон - это поможет " +
+			"нам проще и быстрее решать организационные вопросы.🚀"
+		msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
+			tgbotapi.NewKeyboardButtonRow(getPhoneButton))
+
+	} else {
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(changePhoneButton))
+	}
+
+	_, err = b.bot.Send(msg)
+	return err
+}
+
+func (b *Bot) handleChangePhoneQuery(query *tgbotapi.CallbackQuery) error {
+
 	msg := tgbotapi.NewMessage(query.From.ID,
-		"Напишите свой номер телефона")
+		"Укажите номер, по которому мы сможем связаться с вами.🆕🔥")
 
 	msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(getPhoneButton),
-		tgbotapi.NewKeyboardButtonRow(getLocationButton))
+		tgbotapi.NewKeyboardButtonRow(getPhoneButton))
 
 	_, err := b.bot.Send(msg)
 	return err
+}
+
+func (b *Bot) handlePhoneData(message *tgbotapi.Message) error {
+
+	currentPhone, err := b.userDataRepository.Get(message.Contact.UserID, repository.Phones)
+	if err != nil {
+		return err
+	}
+
+	if currentPhone != message.Contact.PhoneNumber {
+		err := b.userDataRepository.Save(
+			message.Contact.UserID,
+			message.Contact.PhoneNumber,
+			repository.Phones)
+		if err != nil {
+			return err
+		}
+	}
+	return b.deleteReplyMenu(message)
 }

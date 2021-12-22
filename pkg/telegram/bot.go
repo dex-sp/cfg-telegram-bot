@@ -3,16 +3,18 @@ package telegram
 import (
 	"log"
 
+	"github.com/dex-sp/cfg-telegram-bot/pkg/repository"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type Bot struct {
-	bot *tgbotapi.BotAPI
+	bot                *tgbotapi.BotAPI
+	userDataRepository repository.UserDataRepository
 }
 
-func NewBot(bot *tgbotapi.BotAPI) *Bot {
+func NewBot(bot *tgbotapi.BotAPI, repository repository.UserDataRepository) *Bot {
 
-	return &Bot{bot: bot}
+	return &Bot{bot: bot, userDataRepository: repository}
 }
 
 func (b *Bot) Start() error {
@@ -54,7 +56,7 @@ func containsUserPhone(message *tgbotapi.Message) bool {
 
 func (b *Bot) deleteReplyMenu(message *tgbotapi.Message) error {
 
-	msg := tgbotapi.NewChatAction(message.Chat.ID,
+	msg := tgbotapi.NewMessage(message.Chat.ID,
 		"Спасибо, что помогаете нам улучшить качество сервиса.🥳")
 	msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
 
