@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/boltdb/bolt"
+	"github.com/dex-sp/cfg-telegram-bot/pkg/config"
 	"github.com/dex-sp/cfg-telegram-bot/pkg/repository"
 	"github.com/dex-sp/cfg-telegram-bot/pkg/repository/boltdb"
 	"github.com/dex-sp/cfg-telegram-bot/pkg/telegram"
@@ -12,10 +12,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var (
-	telegramTokenVarName string = "TELEGRAM_APITOKEN"
-	// trelloAppKeyVarName  string = "TRELLO_APP_KEY"
-)
+// var (
+// 	telegramTokenVarName string = "TELEGRAM_APITOKEN"
+// 	// trelloAppKeyVarName  string = "TRELLO_APP_KEY"
+// )
 
 func main() {
 
@@ -24,11 +24,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Get the TELEGRAM_APITOKEN environment variable
-	telegramToken, exists := os.LookupEnv(telegramTokenVarName)
-	if !exists {
-		log.Fatalf("%s not exists", telegramTokenVarName)
+	cfg, err := config.Init()
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	// // Get the TELEGRAM_APITOKEN environment variable
+	// telegramToken, exists := os.LookupEnv(telegramTokenVarName)
+	// if !exists {
+	// 	log.Fatalf("%s not exists", telegramTokenVarName)
+	// }
 
 	// Get the TRELLO_APP_KEY environment variable
 	// trelloAppKey, exists := os.LookupEnv(trelloAppKeyVarName)
@@ -36,27 +41,27 @@ func main() {
 	// 	log.Panicf("%s not exists", trelloAppKeyVarName)
 	// }
 
-	bot, err := tgbotapi.NewBotAPI(telegramToken)
+	bot, err := tgbotapi.NewBotAPI(cfg.TelegramToken)
 	if err != nil {
 		log.Fatal(err)
 	}
 	bot.Debug = true
 
-	db, err := initDB()
+	db, err := initDB(cfg.DBPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	userDataRepository := boltdb.NewUserDataRepository(db)
 
-	tgBot := telegram.NewBot(bot, userDataRepository)
+	tgBot := telegram.NewBot(bot, userDataRepository, cfg)
 	if err := tgBot.Start(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func initDB() (*bolt.DB, error) {
+func initDB(dbPath string) (*bolt.DB, error) {
 
-	db, err := bolt.Open("userData.db", 0600, nil)
+	db, err := bolt.Open(dbPath, 0600, nil)
 	if err != nil {
 		return nil, err
 	}
