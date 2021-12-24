@@ -1,11 +1,17 @@
 package telegram
 
 import (
+	"errors"
+	"io"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"os"
 
 	"github.com/dex-sp/cfg-telegram-bot/pkg/config"
 	"github.com/dex-sp/cfg-telegram-bot/pkg/repository"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/ledongthuc/pdf"
 )
 
 type Bot struct {
@@ -101,7 +107,7 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 }
 
 func containsUserPhone(message *tgbotapi.Message) bool {
-	return message.Contact.PhoneNumber != "" &&
+	return message.Contact != nil && message.Contact.PhoneNumber != "" &&
 		message.From.ID == message.Contact.UserID
 }
 
@@ -112,4 +118,67 @@ func (b *Bot) deleteReplyMenu(message *tgbotapi.Message) error {
 
 	_, err := b.bot.Send(msg)
 	return err
+}
+
+func (b *Bot) saveDocument(doc *tgbotapi.Document) (string, error) {
+
+	docDirectURL, err := b.bot.GetFileDirectURL(doc.FileID)
+	if err != nil {
+		return "", err
+	}
+
+	//Get the response bytes from the url
+	response, err := http.Get(docDirectURL)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		return "", errors.New("received non 200 response code")
+	}
+
+	//Create a empty file
+	filePath := doc.FileName
+	file, err := os.Create(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	//Write the bytes to the fiel
+	_, err = io.Copy(file, response.Body)
+	if err != nil {
+		return "", err
+	}
+	return filePath, nil
+}
+
+// Read PDF document as plain text.
+func readDocument(path string, deleteAfterUse bool) (string, error) {
+
+	doc, reader, err := pdf.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer doc.Close()
+
+	resp, err := reader.GetPlainText()
+	if err != nil {
+		return "", err
+	}
+
+	data, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return "", err
+	}
+
+	if deleteAfterUse {
+		err := os.Remove(path)
+		if err != nil {
+			return string(data), err
+		}
+	}
+
+	return string(data), nil
 }

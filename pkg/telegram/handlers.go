@@ -54,7 +54,10 @@ func (b *Bot) handleMessage(message *tgbotapi.Message) error {
 	if containsUserPhone(message) {
 		return b.handlePhoneData(message)
 
+	} else if message.Document != nil {
+		return b.handleDocument(message)
 	}
+
 	return nil
 }
 
@@ -75,4 +78,26 @@ func (b *Bot) handlePhoneData(message *tgbotapi.Message) error {
 		}
 	}
 	return b.deleteReplyMenu(message)
+}
+
+func (b *Bot) handleDocument(message *tgbotapi.Message) error {
+
+	docPath, err := b.saveDocument(message.Document)
+	if err != nil {
+		return err
+	}
+
+	data, err := readDocument(docPath, true)
+	if err != nil {
+		return err
+	}
+
+	if isPayment(data, b.config.Owner) {
+		err := b.handlePayment(message)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -6,10 +6,8 @@ import (
 
 type Config struct {
 	TelegramToken string
-	TrelloAppKey  string
 
-	CreditCard      string
-	CreditCardOwner string
+	Owner Owner
 
 	DBPath string `mapstructure:"db_file"`
 
@@ -19,6 +17,12 @@ type Config struct {
 
 	MainChat  string
 	GuestChat string
+}
+
+type Owner struct {
+	Name       string
+	CreditCard string
+	Phone      string
 }
 
 type ButtonTemplates struct {
@@ -88,15 +92,15 @@ func parseEnv(cfg *Config) error {
 		return err
 	}
 
-	if err := viper.BindEnv("TRELLO_APP_KEY"); err != nil {
+	if err := viper.BindEnv("OWNER"); err != nil {
 		return err
 	}
 
-	if err := viper.BindEnv("CREDIT_CARD"); err != nil {
+	if err := viper.BindEnv("OWNER_CREDIT_CARD"); err != nil {
 		return err
 	}
 
-	if err := viper.BindEnv("CREDIT_CARD_OWNER"); err != nil {
+	if err := viper.BindEnv("OWNER_PHONE"); err != nil {
 		return err
 	}
 
@@ -108,10 +112,12 @@ func parseEnv(cfg *Config) error {
 		return err
 	}
 
+	cfg.Owner.Name = viper.GetString("OWNER")
+	cfg.Owner.CreditCard = viper.GetString("OWNER_CREDIT_CARD")
+	cfg.Owner.Phone = viper.GetString("OWNER_PHONE")
+
 	cfg.TelegramToken = viper.GetString("TELEGRAM_APITOKEN")
-	cfg.TrelloAppKey = viper.GetString("TRELLO_APP_KEY")
-	cfg.CreditCard = viper.GetString("CREDIT_CARD")
-	cfg.CreditCardOwner = viper.GetString("CREDIT_CARD_OWNER")
+
 	cfg.MainChat = viper.GetString("MAIN_CHAT")
 	cfg.GuestChat = viper.GetString("GUEST_CHAT")
 
