@@ -1,6 +1,6 @@
 .vscode
 .bin
 .env
-.db
-.db.lock
-.pdf
+cmd/*.db.lock
+cmd/*.db
+cmd/*.pdf

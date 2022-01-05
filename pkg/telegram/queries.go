@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"github.com/dex-sp/cfg-telegram-bot/pkg/repository"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -9,12 +10,12 @@ import (
 
 const (
 	registrationQuery = "registration"
-	cancelQuery       = "cancel"
 	locationQuery     = "location"
 	priceQuery        = "price"
-	cmdPay            = "pay"
+	payQuery          = "pay"
 	orderQuery        = "order"
 	callQuery         = "call"
+	rulesQuery        = "rules"
 
 	anotherDayQuery  = "another"
 	changePhoneQuery = "change"
@@ -22,34 +23,45 @@ const (
 
 func (b *Bot) handleRegistrationQuery(query *tgbotapi.CallbackQuery) error {
 
-	msg := tgbotapi.NewMessage(query.From.ID,
-		"Напишите свой номер телефона")
+	msgToPlayer := tgbotapi.NewMessage(query.From.ID, fmt.Sprintf(
+		b.config.QueryResponses.Registration,
+		query.From.FirstName, b.config.Owner.Name, b.config.Owner.CreditCard))
+	msgToPlayer.ParseMode = "Markdown"
 
-	if query.From.FirstName != "" {
-		msg.Text = fmt.Sprintf("%s, напишите свой номер телефона",
-			query.From.FirstName)
+	playerPhone, err := b.userDataRepository.Get(query.From.ID, repository.Phones)
+	if err != nil {
+		return err
 	}
 
-	_, err := b.bot.Send(msg)
-	return err
-}
+	// First registration of Player
+	if playerPhone == "" {
+		msgToPlayer.Text = fmt.Sprintf(b.config.QueryResponses.FirstRegistration,
+			getPhoneButton.Text, registrationButton.Text, payButton.Text, callButton.Text)
 
-func (b *Bot) handleCancelQuery(query *tgbotapi.CallbackQuery) error {
+		msgToPlayer.ReplyMarkup = tgbotapi.NewReplyKeyboard(
+			tgbotapi.NewKeyboardButtonRow(getPhoneButton))
 
-	msg := tgbotapi.NewMessage(query.From.ID, b.config.QueryResponses.Cancel)
-	_, err := b.bot.Send(msg)
+	} else {
+		msgToPlayer.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(priceButton),
+			tgbotapi.NewInlineKeyboardRow(changePhoneButton),
+			tgbotapi.NewInlineKeyboardRow(locationButton))
+	}
+
+	_, err = b.bot.Send(msgToPlayer)
 	return err
 }
 
 func (b *Bot) handleLocationQuery(query *tgbotapi.CallbackQuery) error {
 
-	msg := tgbotapi.NewMessage(query.From.ID,
-		"TODO: написать справку по локации")
+	msg := tgbotapi.NewMessage(query.From.ID, fmt.Sprintf(
+		b.config.QueryResponses.Location, b.config.LocationURL))
+	msg.ParseMode = "Markdown"
 
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(registrationButton),
-		tgbotapi.NewInlineKeyboardRow(mainChartButton),
-		tgbotapi.NewInlineKeyboardRow(guestChartButton))
+		tgbotapi.NewInlineKeyboardRow(rulesButton),
+		tgbotapi.NewInlineKeyboardRow(mainChatButton))
 
 	_, err := b.bot.Send(msg)
 	return err
@@ -57,12 +69,7 @@ func (b *Bot) handleLocationQuery(query *tgbotapi.CallbackQuery) error {
 
 func (b *Bot) handlePriceQuery(query *tgbotapi.CallbackQuery) error {
 
-	msg := tgbotapi.NewMessage(query.From.ID,
-		"300р. - сыграть одну игру, примерно 40 минут\n"+
-			"600р. - с 19:00 до 24:00\n"+
-			"800р. - с 19:00 до 03:00\n\n"+
-			"Среда")
-
+	msg := tgbotapi.NewMessage(query.From.ID, b.config.QueryResponses.Price)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(registrationButton))
 
@@ -70,36 +77,32 @@ func (b *Bot) handlePriceQuery(query *tgbotapi.CallbackQuery) error {
 	return err
 }
 
-func (b *Bot) handleCallQuery(query *tgbotapi.CallbackQuery) error {
+func (b *Bot) handlePayQuery(query *tgbotapi.CallbackQuery) error {
 
-	currentPhone, err := b.userDataRepository.Get(query.From.ID, repository.Phones)
+	msg := tgbotapi.NewMessage(query.From.ID, b.config.QueryResponses.Price)
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(registrationButton))
+
+	_, err := b.bot.Send(msg)
+	return err
+}
+
+func (b *Bot) handleGetGameRulesQuery(query *tgbotapi.CallbackQuery) error {
+
+	var err error
+	fName := "rule_book.pdf"
+	fileBytes, err := ioutil.ReadFile(fName)
 	if err != nil {
 		return err
 	}
 
-	msg := tgbotapi.NewMessage(query.From.ID,
-		fmt.Sprintf(b.config.QueryResponses.ChangePhone, changePhoneButton.Text))
-	msg.ParseMode = "Markdown"
+	msg := tgbotapi.NewDocument(query.From.ID,
+		tgbotapi.FileBytes{
+			Name:  fName,
+			Bytes: fileBytes})
 
-	if currentPhone == "" {
-		msg.Text = b.config.QueryResponses.NewPhone
-		msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
-			tgbotapi.NewKeyboardButtonRow(getPhoneButton))
-	} else {
-		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(changePhoneButton))
-	}
-
-	_, err = b.bot.Send(msg)
-	return err
-}
-
-func (b *Bot) handleChangePhoneQuery(query *tgbotapi.CallbackQuery) error {
-
-	msg := tgbotapi.NewMessage(query.From.ID, b.config.QueryResponses.SetPhone)
-	msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(getPhoneButton))
-
-	_, err := b.bot.Send(msg)
+	go func() {
+		_, err = b.bot.Send(msg)
+	}()
 	return err
 }

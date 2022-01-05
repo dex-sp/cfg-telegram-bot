@@ -12,11 +12,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// var (
-// 	telegramTokenVarName string = "TELEGRAM_APITOKEN"
-// 	// trelloAppKeyVarName  string = "TRELLO_APP_KEY"
-// )
-
 func main() {
 
 	// loads values from .env into the system
@@ -29,29 +24,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// // Get the TELEGRAM_APITOKEN environment variable
-	// telegramToken, exists := os.LookupEnv(telegramTokenVarName)
-	// if !exists {
-	// 	log.Fatalf("%s not exists", telegramTokenVarName)
-	// }
-
-	// Get the TRELLO_APP_KEY environment variable
-	// trelloAppKey, exists := os.LookupEnv(trelloAppKeyVarName)
-	// if !exists {
-	// 	log.Panicf("%s not exists", trelloAppKeyVarName)
-	// }
-
 	bot, err := tgbotapi.NewBotAPI(cfg.TelegramToken)
 	if err != nil {
 		log.Fatal(err)
 	}
 	bot.Debug = true
 
-	db, err := initDB(cfg.DBPath)
+	userDB, err := initDB(cfg.UserDBPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	userDataRepository := boltdb.NewUserDataRepository(db)
+
+	userDataRepository := boltdb.NewUserDataRepository(userDB)
 
 	tgBot := telegram.NewBot(bot, userDataRepository, cfg)
 	if err := tgBot.Start(); err != nil {
@@ -72,6 +56,10 @@ func initDB(dbPath string) (*bolt.DB, error) {
 			return err
 		}
 		_, err = tx.CreateBucketIfNotExists([]byte(repository.Locations))
+		if err != nil {
+			return err
+		}
+		_, err = tx.CreateBucketIfNotExists([]byte(repository.Confirmations))
 		if err != nil {
 			return err
 		}

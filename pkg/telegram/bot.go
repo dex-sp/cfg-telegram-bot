@@ -1,7 +1,9 @@
 package telegram
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -24,17 +26,22 @@ var (
 	// Start Menu buttons
 
 	registrationButton tgbotapi.InlineKeyboardButton
-	cancelButton       tgbotapi.InlineKeyboardButton
 	locationButton     tgbotapi.InlineKeyboardButton
+	payButton          tgbotapi.InlineKeyboardButton
 	priceButton        tgbotapi.InlineKeyboardButton
 	callButton         tgbotapi.InlineKeyboardButton
-	mainChartButton    tgbotapi.InlineKeyboardButton
-	guestChartButton   tgbotapi.InlineKeyboardButton
+	rulesButton        tgbotapi.InlineKeyboardButton
+	mainChatButton     tgbotapi.InlineKeyboardButton
 
 	// Phone & Location buttons
 
 	getPhoneButton    tgbotapi.KeyboardButton
 	getLocationButton tgbotapi.KeyboardButton
+
+	// Payment button
+
+	paymentConfirmedButton tgbotapi.InlineKeyboardButton
+	paymentDeclinedButton  tgbotapi.InlineKeyboardButton
 
 	//Other buttons
 
@@ -43,31 +50,10 @@ var (
 	startMenu tgbotapi.InlineKeyboardMarkup
 )
 
-func NewBot(bot *tgbotapi.BotAPI, repository repository.UserDataRepository, config *config.Config) *Bot {
+func NewBot(bot *tgbotapi.BotAPI, userRepo repository.UserDataRepository, config *config.Config) *Bot {
 
-	registrationButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Registration, registrationQuery)
-	cancelButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Cancel, cancelQuery)
-	locationButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Location, locationQuery)
-	priceButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Price, priceQuery)
-	callButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Call, callQuery)
-	mainChartButton = tgbotapi.NewInlineKeyboardButtonURL(config.ButtonTemplates.MainChat, config.MainChat)
-	guestChartButton = tgbotapi.NewInlineKeyboardButtonURL(config.ButtonTemplates.GuestChat, config.GuestChat)
-
-	changePhoneButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.ChangePhone, changePhoneQuery)
-
-	getPhoneButton = tgbotapi.NewKeyboardButtonContact(config.ButtonTemplates.GetPhone)
-	getLocationButton = tgbotapi.NewKeyboardButtonLocation(config.ButtonTemplates.GetLocation)
-
-	startMenu = tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(registrationButton),
-		tgbotapi.NewInlineKeyboardRow(cancelButton),
-		tgbotapi.NewInlineKeyboardRow(locationButton),
-		tgbotapi.NewInlineKeyboardRow(priceButton),
-		tgbotapi.NewInlineKeyboardRow(callButton),
-		tgbotapi.NewInlineKeyboardRow(mainChartButton),
-		tgbotapi.NewInlineKeyboardRow(guestChartButton))
-
-	return &Bot{bot: bot, userDataRepository: repository, config: config}
+	initButtons(config)
+	return &Bot{bot: bot, userDataRepository: userRepo, config: config}
 }
 
 func (b *Bot) Start() error {
@@ -106,16 +92,10 @@ func (b *Bot) handleUpdates(updates tgbotapi.UpdatesChannel) {
 	}
 }
 
-func containsUserPhone(message *tgbotapi.Message) bool {
-	return message.Contact != nil && message.Contact.PhoneNumber != "" &&
-		message.From.ID == message.Contact.UserID
-}
-
 func (b *Bot) deleteReplyMenu(message *tgbotapi.Message) error {
 
 	msg := tgbotapi.NewMessage(message.Chat.ID, b.config.QueryResponses.Thanks)
 	msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
-
 	_, err := b.bot.Send(msg)
 	return err
 }
@@ -146,7 +126,7 @@ func (b *Bot) saveDocument(doc *tgbotapi.Document) (string, error) {
 	}
 	defer file.Close()
 
-	//Write the bytes to the fiel
+	//Write the bytes to the file
 	_, err = io.Copy(file, response.Body)
 	if err != nil {
 		return "", err
@@ -174,11 +154,67 @@ func readDocument(path string, deleteAfterUse bool) (string, error) {
 	}
 
 	if deleteAfterUse {
-		err := os.Remove(path)
+		err := doc.Close()
+		if err != nil {
+			return string(data), err
+		}
+
+		err = os.Remove(path)
 		if err != nil {
 			return string(data), err
 		}
 	}
 
 	return string(data), nil
+}
+
+func (b *Bot) getUsersListString(rp repository.UserDataRepository, bk repository.Bucket) (string, error) {
+
+	base := rp.GetAll(bk)
+	var buffer bytes.Buffer
+	var substring string
+	var config tgbotapi.GetChatMemberConfig
+
+	for userID, phone := range base {
+
+		config.ChatConfigWithUser = tgbotapi.ChatConfigWithUser{
+			ChatID: userID,
+			UserID: userID,
+		}
+		user, err := b.bot.GetChatMember(config)
+		if err != nil {
+			return "", err
+		}
+		substring = fmt.Sprintf("User:\t@%s\nID:\t%d\nPhone:\t+%s\n\n",
+			user.User.UserName, user.User.ID, phone)
+		buffer.WriteString(substring)
+	}
+	return buffer.String(), nil
+}
+
+func initButtons(config *config.Config) {
+
+	registrationButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Registration, registrationQuery)
+	locationButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Location, locationQuery)
+	priceButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Price, priceQuery)
+	payButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Pay, payQuery)
+	callButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.Call, callQuery)
+	rulesButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.GameRules, rulesQuery)
+	mainChatButton = tgbotapi.NewInlineKeyboardButtonURL(config.ButtonTemplates.MainChat, config.MainChat)
+
+	paymentConfirmedButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.PaymentConfirmed, confirmedPayment)
+	paymentDeclinedButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.PaymentDeclined, declinedPayment)
+
+	changePhoneButton = tgbotapi.NewInlineKeyboardButtonData(config.ButtonTemplates.ChangePhone, changePhoneQuery)
+
+	getPhoneButton = tgbotapi.NewKeyboardButtonContact(config.ButtonTemplates.GetPhone)
+	getLocationButton = tgbotapi.NewKeyboardButtonLocation(config.ButtonTemplates.GetLocation)
+
+	startMenu = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(registrationButton),
+		tgbotapi.NewInlineKeyboardRow(locationButton),
+		tgbotapi.NewInlineKeyboardRow(priceButton),
+		tgbotapi.NewInlineKeyboardRow(callButton),
+		tgbotapi.NewInlineKeyboardRow(rulesButton),
+		tgbotapi.NewInlineKeyboardRow(mainChatButton))
 }
